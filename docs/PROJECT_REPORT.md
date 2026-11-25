@@ -391,7 +391,7 @@ Vue 3 + Vite，**不引任何图表库**，趋势图手写 SVG。打包 85.6 kB�
 
 | 坑 | 现象 | 根因 | 解法 |
 |---|---|---|---|
-| 中文计算机名 | `mysqld` 启动失败，`OS errno 2` + `data directory is unusable` | MySQL 安装器把主机名（南笙离）写进 `log-error` / `log-bin` 等配置，非 ASCII 文件名创建失败 | 命令行参数覆盖成 ASCII 文件名（优先级高于配置文件） |
+| 中文计算机名 | `mysqld` 启动失败，`OS errno 2` + `data directory is unusable` | MySQL 安装器把主机名（中文名）写进 `log-error` / `log-bin` 等配置，非 ASCII 文件名创建失败 | 命令行参数覆盖成 ASCII 文件名（优先级高于配置文件） |
 | 带索引装载 | 20 分钟只进 650 万行，推算 3 小时 | 分区表 + 6 个二级索引逐行插入，写放大严重 | 删索引 → 裸装 → 一次 `ALTER` 重建：**4.83 分钟** |
 | 分区白建 | `EXPLAIN` 扫全部 8 个分区 | 分区键是 `month`，查询条件用 `date_key`，优化器无法反推 | 改 `RANGE(date_key)` |
 | PowerShell 编码 | `.ps1` 里变量莫名变 `null` | PowerShell 5.1 对无 BOM 文件按 GBK 解码，中文注释吃掉换行符，把下一行代码并进注释 | 存成 UTF-8 **带 BOM** |

@@ -104,8 +104,8 @@
   - 服务名：`MySQL80`（Status 仍是 Stopped，见下方原因）
   - 安装路径：`C:\Program Files\MySQL\MySQL Server 8.0\bin`
   - 配置文件：`C:\ProgramData\MySQL\MySQL Server 8.0\my.ini`
-  - 数据目录：**`D:\ChatGPT\mysql_data`**（10.42 GB，已从 C 盘整个搬过来，为清理 C 盘空间）
-  - 临时目录：**`D:\ChatGPT\mysql_tmp`**（MySQL 的 `tmpdir` 默认在 C 盘，大查询排序会写 1~2 GB
+  - 数据目录：**`<MySQL 数据目录>`**（10.42 GB，已从 C 盘整个搬过来，为清理 C 盘空间）
+  - 临时目录：**`<MySQL 临时目录>`**（MySQL 的 `tmpdir` 默认在 C 盘，大查询排序会写 1~2 GB
     临时文件，必须指到 D 盘，否则清完 C 盘很快又被占回去）
   - 旧位置 `C:\ProgramData\MySQL\MySQL Server 8.0\Data` 已清空，只剩一个删不掉的空目录壳
     （0 字节，需要管理员删除，不影响运行）
@@ -114,7 +114,7 @@
     - `start_mysql.cmd` 是包装器，用 `-ExecutionPolicy Bypass` 绕开执行策略
     - `start_mysql.ps1` 是本体，含全部参数和注释说明
   - **四个必须记住的坑（都踩过）**：
-    1. **计算机名是中文「南笙离」**，MySQL 安装器把主机名写进了 `my.ini` 的
+    1. **计算机名是中文**，MySQL 安装器把主机名写进了 `my.ini` 的
        `log-error` / `log-bin` / `slow_query_log_file` / `general_log_file`，
        mysqld 创建非 ASCII 文件名会失败（`OS errno 2` + `data directory is unusable`）。
        解法：命令行参数覆盖成 ASCII 文件名（`start_mysql.ps1` 已包含）。
@@ -127,14 +127,14 @@
        中文注释的字节会吃掉换行符，把下一行代码并进注释里——表现为变量莫名其妙变成
        `$null`（本项目就因此让 `--datadir` 失效，mysqld 跑去用 `C:\Program Files` 当数据目录）。
        `.cmd` 则相反：必须 ASCII + CRLF，否则 cmd.exe 会把命令行拆断。
-  - 注意：系统 PATH 中存在一个旧的 MySQL 5.6 客户端（`D:\数据库\数据库实验软件和操作指南\mysql-5.6.24-winx64\bin\mysql.exe`），必须使用 8.0 客户端。
+  - 注意：系统 PATH 中存在一个旧的 MySQL 5.6 客户端（`<另一个 MySQL 5.6 客户端的绝对路径>`），必须使用 8.0 客户端。
 - 已引入并验证：matplotlib 3.11.2、scikit-learn 1.9.1（含 scipy 1.18.1）。
 - 后续计划引入：pymysql、xgboost（可选）、fastapi、uvicorn、Vue 3、Power BI。
 
 ## 7. 当前目录结构
 
 ```text
-D:\ChatGPT\数据分析实战
+<项目根目录>
 ├─ .env.example          # 环境变量模板（MySQL 配置占位）
 ├─ .gitignore            # 已忽略 .venv、data/、outputs/、.env
 ├─ requirements.txt      # 当前依赖：pandas、numpy、pyarrow
@@ -162,7 +162,7 @@ D:\ChatGPT\数据分析实战
 ## 8. 已完成工作的运行命令
 
 ```powershell
-cd D:\ChatGPT\数据分析实战
+cd <项目根目录>
 
 # 创建虚拟环境（已完成）
 python -m venv .venv
@@ -261,13 +261,13 @@ Phase 5–15 已全部执行完毕，下面是原计划与实际交付的对照�
 
 ## 12. 维护须知（环境与运行约束）
 
-1. 项目根目录：`D:\ChatGPT\数据分析实战`。
+1. 项目根目录：`<项目根目录>`。
 2. 先读本文件 + `docs/PROJECT_REPORT.md`（结论）+ `README.md`（怎么跑）。
 3. 数据在本地 `data/`，已被 `.gitignore` 忽略；仓库里不含数据，但**含训练好的模型**
    （`outputs/models/`，703 KB），所以没有数据也能跑 `/api/predict`。
 4. 用项目虚拟环境 `.venv` 中的 Python；换机器先跑 `python\check_env.py`（15 项检查）。
 5. 启动顺序：`start_mysql.cmd` → `start_api.cmd` → 浏览器开 <http://127.0.0.1:8000>。
-6. MySQL 8.0.46 的数据目录已迁到 `D:\ChatGPT\mysql_data`，**免管理员**启动；
+6. MySQL 8.0.46 的数据目录已迁到 `<MySQL 数据目录>`，**免管理员**启动；
    `MySQL80` 服务本身因中文主机名与权限问题未修好，不影响项目运行（见 §6）。
 7. 项目已全部完成 Phase 0–15（Phase 9 的 .pbix 需用户本机 Power BI Desktop 制作）。
 8. 已废弃的 `python/probe_bike_data.py`（旧共享单车方案）已删除。

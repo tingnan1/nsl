@@ -7,7 +7,7 @@
 --      --local_infile=ON；如果是标准服务，需要在 my.ini 的 [mysqld] 段加。
 --   3. 客户端也要加 --local-infile=1。
 --   4. 执行命令（PowerShell，必须用 8.0 客户端，别用 PATH 里那个 5.6）：
---        cd D:\ChatGPT\数据分析实战
+--        cd <项目根目录>
 --        $env:MYSQL_PWD = '<你的密码>'
 --        & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" `
 --          -u root -h 127.0.0.1 -P 3306 --default-character-set=utf8mb4 `
