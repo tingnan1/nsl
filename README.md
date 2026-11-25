@@ -1,5 +1,8 @@
 # 国内电商用户行为分析与复购运营平台
 
+[![CI](https://github.com/tingnan1/nsl/actions/workflows/ci.yml/badge.svg)](https://github.com/tingnan1/nsl/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 基于天猫复购预测公开数据集的完整数据分析链路：**真实数据 → 清洗 → MySQL 星型模型 → SQL 分析 → Python 统计与可视化 → 运营指标体系 → 复购预测模型**。
 
 > 数据来源：[阿里云天池「天猫复购预测」数据集](https://tianchi.aliyun.com/dataset/161265)（比赛公开数据，已脱敏）。
