@@ -2,6 +2,22 @@
 
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，变更格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.2.0] - 2026-11-25
+
+补齐「对外交付」这一层：可直接打开的 Excel 看板、面向业务动作的洞察文档，
+以及 README 的项目亮点与分析问题清单。
+
+### Added
+
+- **Excel 看板** `dashboard/tmall_analytics.xlsx`（6 个工作表）：核心指标、每日趋势（对数轴折线图）、行为结构（柱状图）、品类与商家 TOP10（含集中度解读）、用户分层与模型、数据说明。由 `python/build_excel_dashboard.py` 从 `outputs/bi/` 与模型元信息生成，双击即可打开，不依赖 Power BI 或 Web 服务
+- **`docs/BUSINESS_INSIGHTS.md`**：5 条洞察，每条按「发现 / 解释 / 可执行动作 / 可验证指标」四段式组织，并附「结论的使用边界」表，说明每条结论的成立条件与不能推出的东西
+- **README 新增「项目亮点」与「具体回答的问题」**：8 个具体问题 + 5 条能力亮点，替代原先的概括式开头
+
+### Changed
+
+- `requirements.txt` 增加 `openpyxl>=3.1`
+- Excel 趋势图使用对数纵轴——线性轴会被 1111 单日的 1,058 万条压平，其余 185 天不可见
+
 ## [1.1.0] - 2026-11-25
 
 深化模型与数据库两个章节的可信度，补齐交付物一致性测试。
