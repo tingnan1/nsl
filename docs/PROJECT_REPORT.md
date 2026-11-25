@@ -2,7 +2,7 @@
 
 > 数据来源：阿里云天池「天猫复购预测」公开数据集（已脱敏）。
 > 报告内所有数字均由本项目代码从本地数据实际计算得出，可逐条复现。
-> 分阶段细节见 `outputs/reports/phase{5,6,7,8}_*.md`，工程细节见 `docs/PROJECT_HANDSHAKE.md`。
+> 分阶段细节见 `outputs/reports/phase{5,6,7,8}_*.md`，工程细节见 `docs/ENGINEERING_NOTES.md`。
 
 ---
 

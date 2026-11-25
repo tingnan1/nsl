@@ -159,7 +159,7 @@
 ├─ .github/workflows/ci.yml       # CI：语法检查 + 前端构建 + 单元测试
 ├─ docs/
 │  ├─ PROJECT_REPORT.md           # 完整项目报告（一页看懂 + 全链路结论）
-│  ├─ PROJECT_HANDSHAKE.md        # 交接文档：进度、坑、实测耗时
+│  ├─ ENGINEERING_NOTES.md        # 工程笔记：环境约束、决策依据与实测数据
 │  ├─ data_dictionary.md          # 数据字典
 │  ├─ metrics.md                  # 运营指标字典（含「算不出来的指标」清单）
 │  └─ bi_export.md                # Power BI 数据模型与建模建议
