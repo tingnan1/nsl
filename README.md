@@ -43,7 +43,7 @@
 | Phase 9 | Power BI Dashboard | 🔶 数据导出完成（9 张 CSV），.pbix 需本机 Power BI Desktop |
 | Phase 10 | FastAPI 后端 | ✅ 12 个接口，全部查真实数据库 |
 | Phase 11–12 | Vue 3 前端 + 联调 | 🔶 看板完成、8 个接口全部接通（构建通过），待人工过一遍页面 |
-| Phase 13–15 | 测试、部署、报告 | ✅ 26 项测试 / 单端口部署 / 完整项目报告（演示 PPT 按需求暂不做） |
+| Phase 13–15 | 测试、部署、报告 | ✅ 34 项测试 / 单端口部署 / 完整项目报告（演示 PPT 按需求暂不做） |
 
 ## 4. 关键发现（都可复现）
 
@@ -130,6 +130,22 @@
 - **按 `date_key` 分区**（不是按 `month`）：实测按 `month` 分区时，`date_key` 上的范围条件无法裁剪，`EXPLAIN` 显示 8 个分区全扫；改成 `RANGE(date_key)` 后只扫 `p11`，且 `Using index`。
 - **`dim_date.is_weekend` 故意留 NULL**：数据没有年份，无法确定星期几。没有确凿出处就不编造。
 
+### 6.1 执行计划审计：把「性能」从感觉变成证据
+
+`python/explain_audit.py` 把 `sql/analysis.sql` 拆成 11 条查询逐条 `EXPLAIN` 并实测耗时，结果写在 [phase5_explain_audit.md](outputs/reports/phase5_explain_audit.md)：
+
+| 查询 | 实测耗时 | 说明 |
+|---|---|---|
+| 总览（行数 + 去重用户） | **59.0 s** | 全期累计，走 `idx_month_action` 覆盖索引 |
+| 每日趋势（含日环比、7 日移动平均） | **51.2 s** | 扫全部分区 |
+| 双十一对比（当天 vs 前 7 天） | **60.7 s** | 只命中 `p11` |
+| 行为结构（4 次 `COUNT(DISTINCT)`） | **376.0 s** | 最慢的一条 |
+| 品类/商家 TOP10、购买频次、分层 | 11–18 s | 走索引 + 临时表排序 |
+
+**0 条问题、3 条关注、8 条 OK**：没有百万行级的 `type=ALL` 全表扫描，日期范围查询的分区裁剪全部生效。3 条「关注」都是 `GROUP BY` 后排序取 TOP N 带来的临时表与文件排序——聚合语义的必要代价，不是索引缺失。
+
+**结论：瓶颈不在 SQL 写法，而在「全期累计」口径本身。** 这类查询必须扫完 5492 万行才能给一个数字，加索引救不了。所以接口改为读物化表：**59 s → 0.004 s、376 s → 0.04 s、51 s → 0.03 s**。代价是数据更新后必须重算，因此 `build_aggregates.sql` 末尾带一致性断言，防止物化表悄悄过期。
+
 最终规模：数据 2.7 GB + 索引 5.3 GB。
 
 ## 7. 目录结构
@@ -163,7 +179,8 @@
 │  ├─ vite.config.js              # /api 代理到 127.0.0.1:8000
 │  └─ package.json
 ├─ tests/
-│  ├─ test_units.py               # 10 项单元测试（不需要数据库，CI 跑这个）
+│  ├─ test_units.py               # 10 项单元测试（类型转换、特征顺序、静态路由）
+│  ├─ test_reports.py             # 8 项交付物一致性测试（报告里的关键数字）
 │  └─ test_api.py                 # 16 项集成测试（直连真实 5492 万行）
 ├─ .github/workflows/ci.yml       # CI：语法检查 + 前端构建 + 单元测试
 ├─ docs/
@@ -288,7 +305,7 @@ Vite 已把 `/api/*` 代理到 `127.0.0.1:8000`（见 `frontend/vite.config.js`�
 ### 8.7 跑测试（Phase 13）
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests -v            # 全部 26 项（约 2.5 分钟）
+.\.venv\Scripts\python.exe -m pytest tests -v            # 全部 34 项（约 2.5 分钟）
 .\.venv\Scripts\python.exe -m pytest -m "not integration" -v   # 只跑单元测试（约 2 秒）
 .\.venv\Scripts\python.exe -m ruff check .               # 代码检查
 ```
@@ -300,6 +317,7 @@ Vite 已把 `/api/*` 代理到 `127.0.0.1:8000`（见 `frontend/vite.config.js`�
 | 层 | 数量 | 是否需要数据库 | 跑多长时间 | CI |
 |---|---|---|---|---|
 | 单元测试 `tests/test_units.py` | 10 | 否 | ~1.7 s | ✅ 跑 |
+| 交付物测试 `tests/test_reports.py` | 8 | 否 | ~0.05 s | ✅ 跑 |
 | 集成测试 `tests/test_api.py` | 16 | 是（真实 5492 万行） | ~2.5 分钟 | ⬜ 跳过 |
 
 单元测试保护三处最容易静默出错的地方：`Decimal` 类型转换（转错会让 JSON 里出现字符串数字）、**特征列顺序**（sklearn 按位置读，顺序错了不报错只给错预测）、SPA 兜底路由（不能吞掉 `/api`）。

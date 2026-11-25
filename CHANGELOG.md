@@ -2,6 +2,24 @@
 
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，变更格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.1.0] - 2026-11-25
+
+深化模型与数据库两个章节的可信度，补齐交付物一致性测试。
+
+### Added
+
+- **模型稳健性**：5 折 × 3 轮共 15 次重复交叉验证，ROC-AUC **0.6595 ± 0.0038**（范围 0.6501–0.6648），说明 0.66 附近是模型能力而非单次划分的偶然
+- **业务价值换算**：在验证集上模拟 1%/5%/10%/20%/50% 触达预算；触达前 10% 时命中 1,133 个真实复购用户，比随机挑选多 654 个（2.37 倍）
+- **特征共线性检查**：按特征逐个做线性回归计算 VIF；`seller_buys`(20.60) 与 `seller_buyers`(20.47) 相关系数 0.974，解释了 permutation 重要性为何在两者之间被摊薄
+- **SQL 执行计划审计**（`python/explain_audit.py`）：解析 `analysis.sql` 逐条 `EXPLAIN`，支持 `--time` 实测耗时，生成 `phase5_explain_audit.md`。结果 0 问题 / 3 关注 / 8 OK，最慢查询 376 秒
+- **交付物一致性测试**（`tests/test_reports.py`）：把报告中已核验的关键数字钉成断言，防止用不完整数据重新生成报告后静默提交
+- 新增中间产物：`feature_vif.csv`、`feature_corr_pairs.csv`、`business_value.csv`、`analysis_query_timings.json`
+
+### Changed
+
+- 测试总数 26 → **34**（18 单元 + 16 集成）
+- README 新增「执行计划审计」一节，把 59 s → 0.004 s 的物化收益连同实测耗时一起呈现
+
 ## [1.0.0] - 2026-11-25
 
 首个完整版本：打通「原始数据 → 清洗 → MySQL 星型模型 → SQL 分析 → 统计建模 → 后端 → 看板」全链路。
