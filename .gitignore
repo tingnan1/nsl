@@ -1,0 +1,27 @@
+# Python 虚拟环境和缓存
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 敏感配置
+.env
+
+# 数据文件不提交，避免仓库过大或泄露原始数据
+data/
+
+# 分析产物默认不进仓库（数据量大、可重新生成）
+# 例外：报告、图表、模型产物要进仓库——它们是作品集的展示部分，
+# 模型 artifact（约 430 KB）+ 元信息让克隆下来就能直接跑预测接口
+outputs/*
+!outputs/reports/
+!outputs/charts/
+!outputs/models/
+*.ipynb_checkpoints/
+
+# 前端依赖与构建产物
+frontend/node_modules/
+frontend/dist/
+.vite/
+*.local
