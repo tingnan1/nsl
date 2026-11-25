@@ -85,6 +85,31 @@ def save(df: pd.DataFrame, name: str) -> None:
           f"{path.stat().st_size / 1024:.0f} KB", flush=True)
 
 
+def build_daily_table(daily_df: pd.DataFrame, uv_df: pd.DataFrame,
+                      date_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    把「按日聚合的行为数」「按日 UV」「日期维度」合成一张每日宽表。
+
+    抽成独立函数是为了能单测：日期补零、购买率、人均条数、effective 合并
+    这几处都是「算错了也不报错、只会让看板数字静默偏差」的地方。
+
+    effective 必须带出来：Power BI 里做日均时要先过滤 effective = 1，
+    否则 1112 那 46 行会把平均值拉低（295,297 vs 296,893）。
+    """
+    merged = daily_df.merge(uv_df, on="date_key", how="left")
+    merged = merged.merge(
+        date_df[["date_key", "month", "day", "day_of_year"]], on="date_key", how="left")
+    merged["mmdd"] = merged["date_key"].astype(int).astype(str).str.zfill(4)
+    merged["purchase_rate_pct"] = (
+        merged["purchases"] * 100 / merged["events"]).round(3)
+    merged["events_per_user"] = (merged["events"] / merged["uv"]).round(2)
+    return merged[[
+        "date_key", "mmdd", "month", "day", "day_of_year", "events", "uv",
+        "clicks", "carts", "favs", "purchases", "purchase_rate_pct",
+        "events_per_user", "effective",
+    ]]
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -109,22 +134,8 @@ def main() -> None:
         ORDER BY f.date_key
     """)
     # UV 取自已物化的 agg_daily，避免再对 5492 万行做一次 COUNT(DISTINCT)
-    # effective 一并带出：Power BI 里做日均时必须先过滤 effective = 1，
-    # 否则 1112 那 46 行会把平均值拉低（295,297 vs 296,893）。
     uv_df = fetch("SELECT date_key, uv, effective FROM agg_daily ORDER BY date_key")
-    daily_df = daily_df.merge(uv_df, on="date_key", how="left")
-    daily_df = daily_df.merge(
-        date_df[["date_key", "month", "day", "day_of_year"]], on="date_key", how="left")
-    daily_df["mmdd"] = daily_df["date_key"].astype(int).astype(str).str.zfill(4)
-    daily_df["purchase_rate_pct"] = (
-        daily_df["purchases"] * 100 / daily_df["events"]).round(3)
-    daily_df["events_per_user"] = (daily_df["events"] / daily_df["uv"]).round(2)
-    daily_df = daily_df[[
-        "date_key", "mmdd", "month", "day", "day_of_year", "events", "uv",
-        "clicks", "carts", "favs", "purchases", "purchase_rate_pct",
-        "events_per_user", "effective",
-    ]]
-    save(daily_df, "bi_daily.csv")
+    save(build_daily_table(daily_df, uv_df, date_df), "bi_daily.csv")
 
     print("导出四类行为累计 ...", flush=True)
     action_df = fetch("""

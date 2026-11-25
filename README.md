@@ -10,7 +10,9 @@
 
 📄 **想一次看完结论，读 [docs/PROJECT_REPORT.md](docs/PROJECT_REPORT.md)**（完整项目报告：摘要、关键发现、建模、工程实现、踩坑记录、局限）
 🎯 **只想知道该做什么，读 [docs/BUSINESS_INSIGHTS.md](docs/BUSINESS_INSIGHTS.md)**（5 条洞察，每条含发现 / 解释 / 可执行动作 / 可验证指标）
-📊 **想直接看图表，打开 [dashboard/tmall_analytics.xlsx](dashboard/tmall_analytics.xlsx)**（Excel 看板，双击即可，无需安装任何软件）
+📊 **想直接看数据，打开 [dashboard/tmall_analytics.xlsx](dashboard/tmall_analytics.xlsx)**（Excel 看板，双击即可，无需安装任何软件）
+
+![Excel 看板：核心指标](dashboard/preview_kpi.png)
 
 ## 项目亮点
 
@@ -64,7 +66,7 @@
 | Phase 9 | Power BI Dashboard | 🔶 数据导出完成（9 张 CSV），.pbix 需本机 Power BI Desktop |
 | Phase 10 | FastAPI 后端 | ✅ 12 个接口，全部查真实数据库 |
 | Phase 11–12 | Vue 3 前端 + 联调 | 🔶 看板完成、8 个接口全部接通（构建通过），待人工过一遍页面 |
-| Phase 13–15 | 测试、部署、报告 | ✅ 34 项测试 / 单端口部署 / 完整项目报告（演示 PPT 按需求暂不做） |
+| Phase 13–15 | 测试、部署、报告 | ✅ 40 项测试 / 单端口部署 / 完整项目报告（演示 PPT 按需求暂不做） |
 
 ## 4. 关键发现（都可复现）
 
@@ -204,15 +206,18 @@
 │  ├─ vite.config.js              # /api 代理到 127.0.0.1:8000
 │  └─ package.json
 ├─ dashboard/
-│  └─ tmall_analytics.xlsx        # Excel 看板（双击可开，6 个工作表）
+│  ├─ tmall_analytics.xlsx        # Excel 看板（双击可开，6 个工作表）
+│  └─ preview_kpi.png / preview_trend.png   # 看板预览图
 ├─ tests/
 │  ├─ test_units.py               # 10 项单元测试（类型转换、特征顺序、静态路由）
 │  ├─ test_reports.py             # 8 项交付物一致性测试（报告里的关键数字）
+│  ├─ test_export_bi.py           # 6 项 BI 导出逻辑测试（日期补零、购买率、effective）
 │  └─ test_api.py                 # 16 项集成测试（直连真实 5492 万行）
 ├─ .github/workflows/ci.yml       # CI：lint + 前端构建 + 单元测试
 ├─ docs/
 │  ├─ PROJECT_REPORT.md           # 完整项目报告（一页看懂 + 全链路结论）
 │  ├─ BUSINESS_INSIGHTS.md        # 业务洞察（发现 / 解释 / 动作 / 验证指标）
+│  ├─ RESUME_BULLETS.md           # 简历表述与面试要点
 │  ├─ ENGINEERING_NOTES.md        # 工程笔记：环境约束、决策依据与实测数据
 │  ├─ data_dictionary.md          # 数据字典
 │  ├─ metrics.md                  # 运营指标字典（含「算不出来的指标」清单）
@@ -333,7 +338,7 @@ Vite 已把 `/api/*` 代理到 `127.0.0.1:8000`（见 `frontend/vite.config.js`�
 ### 8.7 跑测试（Phase 13）
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests -v            # 全部 34 项（约 2.5 分钟）
+.\.venv\Scripts\python.exe -m pytest tests -v            # 全部 40 项（约 2.5 分钟）
 .\.venv\Scripts\python.exe -m pytest -m "not integration" -v   # 只跑单元测试（约 2 秒）
 .\.venv\Scripts\python.exe -m ruff check .               # 代码检查
 ```
@@ -346,6 +351,7 @@ Vite 已把 `/api/*` 代理到 `127.0.0.1:8000`（见 `frontend/vite.config.js`�
 |---|---|---|---|---|
 | 单元测试 `tests/test_units.py` | 10 | 否 | ~1.7 s | ✅ 跑 |
 | 交付物测试 `tests/test_reports.py` | 8 | 否 | ~0.05 s | ✅ 跑 |
+| 导出逻辑测试 `tests/test_export_bi.py` | 6 | 否 | ~0.5 s | ✅ 跑 |
 | 集成测试 `tests/test_api.py` | 16 | 是（真实 5492 万行） | ~2.5 分钟 | ⬜ 跳过 |
 
 单元测试保护三处最容易静默出错的地方：`Decimal` 类型转换（转错会让 JSON 里出现字符串数字）、**特征列顺序**（sklearn 按位置读，顺序错了不报错只给错预测）、SPA 兜底路由（不能吞掉 `/api`）。
@@ -450,6 +456,10 @@ cd ..
 | 数据说明 | 10 条口径限制，先看这里再看数字 |
 
 看板数据来自 `outputs/bi/` 的宽表和 `outputs/models/repurchase_model_meta.json`，所以要先跑 8.9 和建模步骤。
+
+**每日趋势（对数轴）**——线性轴会被 1111 单日的 1,058 万条压平，用对数轴才能看清其余 185 天的真实走势；右端骤降是 1112 那 46 行的数据截断尾巴：
+
+![Excel 看板：每日趋势](dashboard/preview_trend.png)
 
 ## 9. 这份数据算不出来的东西
 

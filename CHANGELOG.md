@@ -2,6 +2,21 @@
 
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)，变更格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.3.0] - 2026-11-25
+
+补上「给人看」和「给人验证」两块：看板预览图、简历表述文档，以及 BI 导出逻辑的测试。
+
+### Added
+
+- **看板预览图** `dashboard/preview_kpi.png`、`dashboard/preview_trend.png`，直接嵌在 README 首屏，不用点开工作簿就能看到核心指标与趋势形态
+- **`docs/RESUME_BULLETS.md`**：一句话概述、精简版（3 条）与展开版（5–6 条）简历写法、60 秒口述稿、8 个高频追问的答题要点，以及「不能说的话」红线清单
+- **`tests/test_export_bi.py`**：6 项测试覆盖每日宽表的拼装逻辑（mmdd 补零、购买率为百分数、人均条数、`effective` 标记、列顺序、日期维度合并）
+
+### Changed
+
+- `python/export_bi.py` 抽出纯函数 `build_daily_table()`，让这段「算错也不报错」的拼装逻辑可以被单测
+- 测试总数 34 → **40**（24 单元 + 16 集成）
+
 ## [1.2.0] - 2026-11-25
 
 补齐「对外交付」这一层：可直接打开的 Excel 看板、面向业务动作的洞察文档，
