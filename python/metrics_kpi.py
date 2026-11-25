@@ -195,7 +195,6 @@ def hhi(counts: np.ndarray) -> tuple[float, float]:
 def build_tables(r: dict) -> dict[str, pd.DataFrame]:
     tables: dict[str, pd.DataFrame] = {}
     ua = r["users_by_action"]
-    total_users = int(np.count_nonzero(r["days_active_per_user"]))
 
     # ---- 1. 转化类（受限口径）----
     click_u = int(ua[0].sum())
@@ -300,7 +299,6 @@ def build_tables(r: dict) -> dict[str, pd.DataFrame]:
 
 
 def write_report(r: dict, checks, tables: dict[str, pd.DataFrame]) -> None:
-    ua = r["users_by_action"]
     total_users = int(np.count_nonzero(r["days_active_per_user"]))
     events = r["events_by_action"]
     total_events = int(events.sum())

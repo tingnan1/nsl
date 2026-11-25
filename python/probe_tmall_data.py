@@ -1,4 +1,4 @@
-"""
+r"""
 天猫复购预测数据集：文件探针脚本
 
 用途：
@@ -13,7 +13,6 @@
 """
 
 import csv
-import os
 from pathlib import Path
 
 

@@ -1,0 +1,21 @@
+# 代码检查配置（ruff）
+# 用法：.\.venv\Scripts\ruff.exe check .
+
+target-version = "py311"
+line-length = 100
+
+exclude = [
+    ".venv",
+    "frontend/node_modules",
+    "frontend/dist",
+    "data",
+    "outputs",
+]
+
+[lint]
+# E/F/W 覆盖语法错误、未定义名称、未使用导入与变量、无效转义等真实问题
+select = ["E", "F", "W"]
+ignore = [
+    # 行宽由 line-length 控制；报告类脚本里有较长的中文说明行，不强制折行
+    "E501",
+]

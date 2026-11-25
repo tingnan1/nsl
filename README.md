@@ -281,7 +281,10 @@ Vite 已把 `/api/*` 代理到 `127.0.0.1:8000`（见 `frontend/vite.config.js`�
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests -v            # 全部 26 项（约 2.5 分钟）
 .\.venv\Scripts\python.exe -m pytest -m "not integration" -v   # 只跑单元测试（约 2 秒）
+.\.venv\Scripts\python.exe -m ruff check .               # 代码检查
 ```
+
+代码检查用 ruff（规则见 `ruff.toml`，`E/F/W` 忽略行宽），当前 `All checks passed`。
 
 **测试分两层：**
 

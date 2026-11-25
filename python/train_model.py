@@ -29,7 +29,6 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
@@ -138,7 +137,7 @@ def top_frac_report(y_true, scores, frac: float = 0.10) -> dict:
     base = total_pos / n
     prec = hit / k
     return {
-        f"触达比例": f"{frac * 100:.0f}%",
+        "触达比例": f"{frac * 100:.0f}%",
         "触达人数": k,
         "命中正例数": hit,
         "精确率": round(prec, 4),

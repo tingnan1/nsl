@@ -550,7 +550,6 @@ def write_report(tables: dict[str, pd.DataFrame], checks, result: dict) -> None:
 
     total_events = int(act["事件数"].sum())
     buy_users = int(act.loc[act["action_type"] == 2, "去重用户数"].iloc[0])
-    click_users = int(act.loc[act["action_type"] == 0, "去重用户数"].iloc[0])
     all_users = int(result["days_active_per_user"].astype(bool).sum())
 
     buyers = int((result["purchases_by_user"] > 0).sum())
@@ -562,8 +561,7 @@ def write_report(tables: dict[str, pd.DataFrame], checks, result: dict) -> None:
     in_scope = label_1 + label_0
     repurchase_rate = label_1 * 100 / in_scope if in_scope else 0
 
-    # 1111 / 1112 的实测值，用于在报告里说明数据结构的特殊性
-    rows_1111 = int(d11.loc[d11["指标"] == "行为条数", "1111当天"].iloc[0])
+    # 1112 的实测值，用于在报告里说明数据截断尾巴
     rows_1112 = int(daily.loc[daily["mmdd"] == "1112", "行为条数"].iloc[0])
     buy_1112 = int(daily.loc[daily["mmdd"] == "1112", "购买事件"].iloc[0])
     addcart_users = int(act.loc[act["action_type"] == 1, "去重用户数"].iloc[0])
@@ -586,7 +584,7 @@ def write_report(tables: dict[str, pd.DataFrame], checks, result: dict) -> None:
 
     lines.append("\n## 2. 这份数据的真实结构（读后面的结论前必须先看）\n")
     lines.append(
-        f"下面三条不是推断，是从 5,492 万行里数出来、并用两种独立实现交叉验证过的：\n"
+        "下面三条不是推断，是从 5,492 万行里数出来、并用两种独立实现交叉验证过的：\n"
     )
     lines.append(
         f"1. 去重用户 **{all_users:,}** 个，`user_id` 连续覆盖 1~424,170，没有跳号。"
