@@ -1,0 +1,29 @@
+# 统一编辑器配置，避免不同环境产生无意义的 diff
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{js,vue,css,json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+# Markdown 行尾两个空格表示换行，不能裁掉
+trim_trailing_whitespace = false
+
+[*.{cmd,bat}]
+# cmd.exe 要求 CRLF
+end_of_line = crlf
+
+[*.ps1]
+# PowerShell 5.1 需要 UTF-8 BOM 才能正确解析中文
+charset = utf-8-bom
+end_of_line = crlf
+
+[Makefile]
+indent_style = tab
