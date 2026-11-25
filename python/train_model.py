@@ -37,7 +37,9 @@ from sklearn.metrics import (
     f1_score, precision_score, recall_score, roc_auc_score, roc_curve,
     precision_recall_curve,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.model_selection import (
+    RepeatedStratifiedKFold, StratifiedKFold, cross_val_score, train_test_split,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -144,6 +146,78 @@ def top_frac_report(y_true, scores, frac: float = 0.10) -> dict:
         "召回率": round(hit / total_pos, 4),
         "相对基线提升倍数": round(prec / base, 2) if base else None,
     }
+
+
+def build_business_value(y_true, scores,
+                         fractions=(0.01, 0.05, 0.10, 0.20, 0.50)) -> pd.DataFrame:
+    """
+    把模型分数翻译成业务语言：只触达前 K% 人群时，能比随机多命中多少人。
+
+    「相对随机提升」= 精确率 / 基准正例率；「较随机多命中」= 命中数 - K*N*基准率。
+    后者才是运营真正能感知的量：同样的触达预算，多捞回多少个真实复购用户。
+    """
+    n = len(scores)
+    y_arr = y_true.to_numpy()
+    total_pos = int(y_arr.sum())
+    base = total_pos / n
+    order = np.argsort(scores)[::-1]
+
+    rows = []
+    for frac in fractions:
+        k = max(1, int(n * frac))
+        hit = int(y_arr[order[:k]].sum())
+        precision = hit / k
+        rows.append({
+            "触达比例": f"{frac:.0%}",
+            "触达人数": k,
+            "命中正例": hit,
+            "精确率": round(precision, 4),
+            "召回率": round(hit / total_pos, 4),
+            "相对随机提升": round(precision / base, 2) if base else None,
+            "较随机多命中": int(round(hit - base * k)),
+        })
+    return pd.DataFrame(rows)
+
+
+def compute_vif(X: pd.DataFrame) -> pd.DataFrame:
+    """
+    计算方差膨胀因子（VIF），检查特征共线性。
+
+    VIF_j = 1 / (1 - R²_j)，R²_j 是把第 j 个特征对其余特征做线性回归得到的决定系数。
+    VIF > 10 通常认为共线性严重。这里不用 statsmodels，直接调 sklearn 的
+    LinearRegression，避免为一个指标引入额外依赖。
+    """
+    from sklearn.linear_model import LinearRegression
+
+    values = X.to_numpy(dtype=float)
+    rows = []
+    for j, name in enumerate(X.columns):
+        target = values[:, j]
+        others = np.delete(values, j, axis=1)
+        model = LinearRegression().fit(others, target)
+        r2 = float(model.score(others, target))
+        # R² 接近 1 时 VIF 趋于无穷，用 None 表示
+        vif = None if r2 >= 1 - 1e-12 else round(1 / (1 - r2), 2)
+        rows.append({"特征": name, "VIF": vif, "R²": round(r2, 4)})
+
+    df = pd.DataFrame(rows)
+    return df.sort_values("VIF", ascending=False, na_position="first").reset_index(drop=True)
+
+
+def compute_corr_pairs(X: pd.DataFrame, threshold: float = 0.8) -> pd.DataFrame:
+    """列出相关系数绝对值超过阈值的特征对。"""
+    corr = X.corr().abs()
+    cols = list(corr.columns)
+    rows = []
+    for i in range(len(cols)):
+        for j in range(i + 1, len(cols)):
+            value = float(corr.iloc[i, j])
+            if value >= threshold:
+                rows.append({"特征A": cols[i], "特征B": cols[j],
+                             "|相关系数|": round(value, 4)})
+    if not rows:
+        return pd.DataFrame(columns=["特征A", "特征B", "|相关系数|"])
+    return pd.DataFrame(rows).sort_values("|相关系数|", ascending=False).reset_index(drop=True)
 
 
 def build_models(features: list[str]) -> dict:
@@ -325,6 +399,30 @@ def main() -> None:
     print(calib_tbl.to_string(index=False))
     calib_tbl.to_csv(TABLE_DIR / "model_calibration.csv", index=False, encoding="utf-8-sig")
 
+    # ---- 稳健性：重复交叉验证 ----
+    # 单次 5 折的均值会受划分随机性影响。重复 3 轮共 15 次评估，
+    # 才能说明「0.65 是模型水平，不是某次划分撞上的」。
+    cv_rep = RepeatedStratifiedKFold(n_splits=5, n_repeats=3, random_state=RANDOM_STATE)
+    cv_auc_rep = cross_val_score(best_model, X, y, cv=cv_rep, scoring="roc_auc", n_jobs=1)
+    print(f"\n{best_name} 重复交叉验证（5 折 × 3 轮 = {len(cv_auc_rep)} 次）："
+          f"均值 {cv_auc_rep.mean():.4f} ± {cv_auc_rep.std():.4f}，"
+          f"范围 [{cv_auc_rep.min():.4f}, {cv_auc_rep.max():.4f}]")
+
+    # ---- 业务价值换算 ----
+    business_df = build_business_value(y_va, proba_best)
+    business_df.to_csv(TABLE_DIR / "business_value.csv", index=False, encoding="utf-8-sig")
+    print("\n业务价值换算（在验证集上模拟不同触达预算）：")
+    print(business_df.to_string(index=False))
+
+    # ---- 特征共线性 ----
+    vif_df = compute_vif(X)
+    corr_df = compute_corr_pairs(X)
+    vif_df.to_csv(TABLE_DIR / "feature_vif.csv", index=False, encoding="utf-8-sig")
+    corr_df.to_csv(TABLE_DIR / "feature_corr_pairs.csv", index=False, encoding="utf-8-sig")
+    print("\n特征共线性（VIF 降序，>10 视为严重）：")
+    print(vif_df.head(8).to_string(index=False))
+    print(f"|相关系数| >= 0.8 的特征对：{len(corr_df)} 组")
+
     # ---- 运营视角：取前 10% 人群 ----
     top_rows = []
     for name, proba in importances.items():
@@ -381,7 +479,9 @@ def main() -> None:
 
     plot_all(y_va, importances, imp_df, result_df, calib_tbl)
     write_report(result_df, top_df, thr_df, imp_df, cv_auc, y, y_va, features, test_proba,
-                 calib_tbl=calib_tbl, brier=brier, brier_baseline=brier_baseline)
+                 calib_tbl=calib_tbl, brier=brier, brier_baseline=brier_baseline,
+                 cv_auc_rep=cv_auc_rep, business_df=business_df,
+                 vif_df=vif_df, corr_df=corr_df)
 
     print("\nPhase 8 建模完成。")
 
@@ -479,7 +579,8 @@ def plot_all(y_va, probas: dict, imp_df: pd.DataFrame, result_df: pd.DataFrame,
 
 
 def write_report(result_df, top_df, thr_df, imp_df, cv_auc, y, y_va, features, test_proba,
-                 calib_tbl=None, brier=None, brier_baseline=None) -> None:
+                 calib_tbl=None, brier=None, brier_baseline=None,
+                 cv_auc_rep=None, business_df=None, vif_df=None, corr_df=None) -> None:
     lines = []
     lines.append("# Phase 8 复购预测建模报告\n")
     lines.append("> 数据来源：`outputs/tables/features_train.csv`（由 `python/build_features.py` "
@@ -531,6 +632,16 @@ def write_report(result_df, top_df, thr_df, imp_df, cv_auc, y, y_va, features, t
     lines.append(f"- 5 折交叉验证 ROC-AUC：**{cv_auc.mean():.4f} ± {cv_auc.std():.4f}**，"
                  "说明结果不是某一次划分的偶然。")
 
+    if cv_auc_rep is not None and len(cv_auc_rep):
+        lines.append(
+            f"- 重复交叉验证（5 折 × 3 轮 = {len(cv_auc_rep)} 次）："
+            f"均值 **{cv_auc_rep.mean():.4f} ± {cv_auc_rep.std():.4f}**，"
+            f"范围 **[{cv_auc_rep.min():.4f}, {cv_auc_rep.max():.4f}]**。")
+        lines.append(
+            "  > 单次 5 折的均值会被划分随机性影响；重复 15 次后区间仍然只有 "
+            f"{cv_auc_rep.max() - cv_auc_rep.min():.4f} 的宽度，说明 "
+            f"{cv_auc_rep.mean():.2f} 附近的水平是模型本身的能力，而不是某次划分撞上的。")
+
     lines.append("\n## 3. 运营视角：只触达前 10% 人群\n")
     lines.append("| 模型 | 触达人数 | 命中正例数 | 精确率 | 召回率 | 相对基线提升倍数 |")
     lines.append("|---|---|---|---|---|---|")
@@ -540,6 +651,30 @@ def write_report(result_df, top_df, thr_df, imp_df, cv_auc, y, y_va, features, t
     lines.append("\n> 这一节才是运营真正关心的：预算只能覆盖一部分人时，"
                  "模型排序能不能比随机挑选更准。\n")
 
+    if business_df is not None and len(business_df):
+        lines.append("\n### 3.1 业务价值换算（不同触达预算下能多捞回多少人）\n")
+        lines.append("在验证集（78,260 条样本，{:,} 个真实复购）上模拟不同触达比例：\n".format(
+            int(y_va.sum())))
+        lines.append("| 触达比例 | 触达人数 | 命中正例 | 精确率 | 召回率 | 相对随机提升 | 较随机多命中 |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for _, r in business_df.iterrows():
+            lines.append(
+                f"| {r['触达比例']} | {int(r['触达人数']):,} | {int(r['命中正例']):,} | "
+                f"{r['精确率']} | {r['召回率']} | {r['相对随机提升']}× | "
+                f"**+{int(r['较随机多命中']):,}** |")
+        sample = business_df[business_df["触达比例"] == "10%"]
+        if len(sample):
+            row = sample.iloc[0]
+            lines.append(
+                f"\n> 读法：若只触达前 10%（{int(row['触达人数']):,} 人），"
+                f"模型能命中 {int(row['命中正例']):,} 个真实复购用户；"
+                f"同样人数随机挑选只能命中约 {int(row['触达人数'] * float(y_va.mean())):,} 个。"
+                f"**同样的触达预算，多捞回 {int(row['较随机多命中']):,} 个真实复购用户**"
+                f"（提升 {row['相对随机提升']} 倍）。")
+        lines.append(
+            "\n> 这是离线模拟，不是线上收益：假设被命中的人不因触达而改变行为，"
+            "也没有考虑触达成本与转化漏斗。真实投放需要 A/B 实验验证。\n")
+
     lines.append("\n## 4. 特征重要性（permutation，最优模型）\n")
     lines.append("| 特征 | 重要性均值 | 标准差 |")
     lines.append("|---|---|---|")
@@ -547,6 +682,33 @@ def write_report(result_df, top_df, thr_df, imp_df, cv_auc, y, y_va, features, t
         lines.append(f"| {r['特征']} | {r['重要性均值']} | {r['标准差']} |")
     lines.append("\n> permutation 重要性 = 打乱该特征后 ROC-AUC 的下降幅度。"
                  "负值表示打乱后指标反而上升，说明该特征在模型里没提供有效信息。\n")
+
+    if vif_df is not None and len(vif_df):
+        lines.append("\n### 4.1 特征共线性检查\n")
+        lines.append("用方差膨胀因子（VIF = 1/(1-R²)）衡量每个特征能被其余特征线性解释的程度，"
+                     "VIF > 10 通常视为共线性严重：\n")
+        lines.append("| 特征 | VIF | R² |")
+        lines.append("|---|---|---|")
+        for _, r in vif_df.head(8).iterrows():
+            vif_text = "∞" if r["VIF"] is None or pd.isna(r["VIF"]) else f"{r['VIF']:.2f}"
+            lines.append(f"| {r['特征']} | {vif_text} | {r['R²']:.4f} |")
+        high_vif = vif_df[
+            (vif_df["VIF"].isna()) | (pd.to_numeric(vif_df["VIF"], errors="coerce") > 10)]
+        lines.append(
+            f"\n> VIF 超过 10 的特征有 **{len(high_vif)}** 个"
+            + ("：" + "、".join(f"`{n}`" for n in high_vif["特征"].tolist()) if len(high_vif) else "")
+            + "。")
+        if corr_df is not None and len(corr_df):
+            lines.append(
+                f"> |相关系数| ≥ 0.8 的特征对有 **{len(corr_df)}** 组，"
+                "最高的是 " + "、".join(
+                    f"`{r['特征A']}`×`{r['特征B']}`（{r['|相关系数|']:.3f}）"
+                    for _, r in corr_df.head(3).iterrows()) + "。")
+            lines.append(
+                "> 共线性不会让梯度提升失效（树模型对共线不敏感），但会让 permutation "
+                "重要性在共线特征间被摊薄——两个高度相关的特征各自的重要性都会偏低，"
+                "这是解释重要性时容易误判的地方。")
+        lines.append("")
 
     lines.append("\n## 5. 测试集预测\n")
     lines.append(f"- 已输出 `prediction_test.csv`（261,477 行），预测概率均值 "
